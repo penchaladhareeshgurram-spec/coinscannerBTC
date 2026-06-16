@@ -1,0 +1,6 @@
+{
+  "name": "CoinScanner",
+  "description": "A crypto intelligence platform built for India. Live prices, exchange comparison, and market news.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
