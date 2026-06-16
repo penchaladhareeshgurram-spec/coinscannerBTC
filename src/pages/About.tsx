@@ -19,7 +19,8 @@ import {
   Check,
   X,
   Mail,
-  Instagram
+  Instagram,
+  Shield
 } from "lucide-react";
 import "./about.css";
 

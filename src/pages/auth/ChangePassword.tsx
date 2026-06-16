@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Lock, Eye, EyeOff, Key, ArrowLeft, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Shield, Lock, Eye, EyeOff, Key, ArrowLeft, AlertCircle, CheckCircle2 } from "lucide-react";
 
 export default function ChangePassword() {
   const [currentPassword, setCurrentPassword] = useState("");
