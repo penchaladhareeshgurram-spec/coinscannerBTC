@@ -28,16 +28,32 @@ export default function Home() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [globalRes, coinsRes, trendingRes] = await Promise.all([
-          axios.get("/api/coins/global"),
-          axios.get("/api/coins/markets?vs_currency=inr"),
-          axios.get("/api/coins/trending")
-        ]);
-        setGlobalStats(globalRes.data);
-        setCoins(coinsRes.data);
-        if (trendingRes.data && trendingRes.data.coins) {
-          setTrending(trendingRes.data.coins.map((c: any) => c.item));
+        let globalData = null;
+        let coinsData = [];
+        let trendingData = [];
+
+        try {
+          const globalRes = await axios.get("/api/coins/global");
+          globalData = globalRes.data;
+        } catch (e) { console.error("Global API failed", e); }
+
+        try {
+          const coinsRes = await axios.get("/api/coins/markets?vs_currency=inr");
+          coinsData = coinsRes.data;
+        } catch (e) { console.error("Markets API failed", e); }
+
+        try {
+          const trendingRes = await axios.get("/api/coins/trending");
+          if (trendingRes.data && trendingRes.data.coins) {
+            trendingData = trendingRes.data.coins.map((c: any) => c.item);
+          }
+        } catch (e) { console.error("Trending API failed", e); }
+
+        setGlobalStats(globalData);
+        if (coinsData && Array.isArray(coinsData)) {
+          setCoins(coinsData);
         }
+        setTrending(trendingData);
       } catch (err) {
         console.error(err);
       } finally {
