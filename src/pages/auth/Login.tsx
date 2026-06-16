@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { AlertCircle, CheckCircle2, Lock, Mail, Eye, EyeOff, LogIn, Check } from "lucide-react";
-import axios from "axios";
+import { auth, db } from "../../lib/firebase";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import "./auth.css";
 
 export default function Login() {
@@ -22,15 +24,25 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
-      const res = await axios.post("/api/auth/login", { email: identifier, password });
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("user", JSON.stringify(res.data.user));
+      let emailToLogin = identifier;
+      
+      // If looks like a phone number, resolve it to an email in Firestore first
+      if (/^[\d+\-\s]+$/.test(identifier)) {
+        const q = query(collection(db, "users"), where("phone", "==", identifier));
+        const querySnapshot = await getDocs(q);
+        if (querySnapshot.empty) {
+            throw new Error("No user found with this mobile number.");
+        }
+        emailToLogin = querySnapshot.docs[0].data().email;
+      }
+
+      await signInWithEmailAndPassword(auth, emailToLogin, password);
       navigate("/");
     } catch (err: any) {
-      if (err.response?.status === 403) {
-         navigate(`/verify?email=${encodeURIComponent(identifier)}`);
+      if (err.code === "auth/user-not-found" || err.code === "auth/wrong-password") {
+         setError("Invalid credentials");
       } else {
-         setError(err.response?.data?.error || "Invalid credentials");
+         setError(err.message || "Invalid credentials");
       }
     } finally {
       setLoading(false);

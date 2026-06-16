@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Shield, Lock, Eye, EyeOff, Key, ArrowLeft, AlertCircle, CheckCircle2 } from "lucide-react";
+import { auth } from "../../lib/firebase";
+import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
 
 export default function ChangePassword() {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -24,13 +26,29 @@ export default function ChangePassword() {
     
     setError(null);
     setLoading(true);
-    
-    // Simulating API verification (replace with actual API call)
-    setTimeout(() => {
+
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error("No user is logged in.");
+      
+      if (user.email) {
+        const credential = EmailAuthProvider.credential(user.email, currentPassword);
+        await reauthenticateWithCredential(user, credential);
+        await updatePassword(user, newPassword);
+        setSuccess("Your password has been changed successfully.");
+        setTimeout(() => navigate("/profile"), 2000);
+      } else {
+        throw new Error("User does not have an email associated.");
+      }
+    } catch (err: any) {
+      if (err.code === "auth/wrong-password") {
+        setError("Invalid current password.");
+      } else {
+        setError(err.message || "Failed to update password.");
+      }
+    } finally {
       setLoading(false);
-      setSuccess("Your password has been changed successfully.");
-      setTimeout(() => navigate("/profile"), 2000);
-    }, 1000);
+    }
   };
 
   return (

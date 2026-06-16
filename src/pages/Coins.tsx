@@ -9,6 +9,9 @@ import { LineChart, Line, ResponsiveContainer, YAxis } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Star, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { auth, db } from "@/src/lib/firebase";
+import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
+import { collection, query, where, getDocs, setDoc, doc, deleteDoc } from "firebase/firestore";
 
 export default function Coins() {
   const [coins, setCoins] = useState<Coin[]>([]);
@@ -16,6 +19,7 @@ export default function Coins() {
   const [loading, setLoading] = useState(true);
   const [selectedCoin, setSelectedCoin] = useState<Coin | null>(null);
   const [watchlist, setWatchlist] = useState<string[]>([]);
+  const [user, setUser] = useState<FirebaseUser | null>(null);
   
   // chart state
   const [chartPeriod, setChartPeriod] = useState<"1" | "7" | "30" | "365">("7");
@@ -23,16 +27,25 @@ export default function Coins() {
   const [loadingChart, setLoadingChart] = useState(false);
 
   useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        try {
+          const q = query(collection(db, "watchlists"), where("user_id", "==", currentUser.uid));
+          const snapshot = await getDocs(q);
+          setWatchlist(snapshot.docs.map(doc => doc.data().coin_id));
+        } catch(e) {
+          console.error(e);
+        }
+      } else {
+        setWatchlist([]);
+      }
+    });
+
     async function loadData() {
       try {
         const res = await axios.get("/api/coins/markets?vs_currency=inr");
         setCoins(res.data);
-        
-        const token = localStorage.getItem("token");
-        if (token) {
-          const wRes = await axios.get("/api/watchlist", { headers: { Authorization: `Bearer ${token}`} });
-          setWatchlist(wRes.data);
-        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -40,6 +53,7 @@ export default function Coins() {
       }
     }
     loadData();
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -64,8 +78,7 @@ export default function Coins() {
 
   const handleWatchlist = async (e: React.MouseEvent, coinId: string) => {
     e.stopPropagation();
-    const token = localStorage.getItem("token");
-    if (!token) {
+    if (!user) {
       toast("Please login to use watchlists.");
       return;
     }
@@ -73,13 +86,18 @@ export default function Coins() {
     try {
       const isWatchlisted = watchlist.includes(coinId);
       if (isWatchlisted) {
-        await axios.delete(`/api/watchlist/${coinId}`, { headers: { Authorization: `Bearer ${token}`} });
         setWatchlist(prev => prev.filter(id => id !== coinId));
         toast("Removed from watchlist");
+        const q = query(collection(db, "watchlists"), where("user_id", "==", user.uid), where("coin_id", "==", coinId));
+        const snapshot = await getDocs(q);
+        for(const d of snapshot.docs) {
+           await deleteDoc(d.ref);
+        }
       } else {
-        await axios.post("/api/watchlist", { coin_id: coinId }, { headers: { Authorization: `Bearer ${token}`} });
         setWatchlist(prev => [...prev, coinId]);
         toast("Added to watchlist");
+        const newRef = doc(collection(db, "watchlists"));
+        await setDoc(newRef, { id: newRef.id, user_id: user.uid, coin_id: coinId });
       }
     } catch (err) {
       toast("Failed to update watchlist");

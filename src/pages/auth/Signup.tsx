@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { User, Lock, Mail, Smartphone, Eye, EyeOff, UserPlus, Check, AlertCircle } from "lucide-react";
-import axios from "axios";
+import { auth, db } from "../../lib/firebase";
+import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
 import "./auth.css";
 
 export default function Signup() {
@@ -26,10 +28,24 @@ export default function Signup() {
     setError("");
     setLoading(true);
     try {
-      await axios.post("/api/auth/signup", { name, email, phone, password });
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      
+      await updateProfile(user, { displayName: name });
+      await sendEmailVerification(user);
+      
+      // Save additional user info to Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        id: user.uid,
+        name,
+        email,
+        phone,
+        createdAt: new Date().toISOString()
+      });
+
       navigate(`/verify?email=${encodeURIComponent(email)}`);
     } catch (err: any) {
-      setError(err.response?.data?.error || "Signup failed");
+      setError(err.message || "Signup failed");
     } finally {
       setLoading(false);
     }

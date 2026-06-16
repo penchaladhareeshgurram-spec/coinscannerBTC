@@ -3,16 +3,31 @@ import { cn } from "@/lib/utils";
 import { Coins, Newspaper, ListCollapse, LogIn, LineChart, User, Info, LogOut, Bookmark, Scale, Home, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useRef, useEffect } from "react";
+import { auth, db } from "@/src/lib/firebase";
+import { onAuthStateChanged, signOut, User as FirebaseUser } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 
 export function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const token = localStorage.getItem("token");
-  const userStr = localStorage.getItem("user");
-  const user = userStr ? JSON.parse(userStr) : null;
+  const [user, setUser] = useState<any>(null);
   const [currency, setCurrency] = useState("inr");
   const [accountOpen, setAccountOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        // Fetch user document to get extra info if needed, or simply use currentUser attributes
+        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+        setUser({ id: currentUser.uid, email: currentUser.email, ...userDoc.data() });
+      } else {
+        setUser(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const links = [
     { name: "Home", path: "/", icon: <Home className="w-4 h-4 mr-2" /> },
@@ -21,7 +36,8 @@ export function Navbar() {
     { name: "News", path: "/news", icon: <Newspaper className="w-4 h-4 mr-2" /> },
   ];
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await signOut(auth);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     navigate("/");
@@ -82,7 +98,7 @@ export function Navbar() {
               </button>
             </div>
 
-            {token ? (
+            {user ? (
               <div className="relative hidden md:block" ref={accountRef}>
                 <button 
                   onClick={() => setAccountOpen(!accountOpen)}
@@ -150,7 +166,7 @@ export function Navbar() {
               <span>{link.name}</span>
             </Link>
           ))}
-          {token ? (
+          {user ? (
             <Link to="/profile" className={cn("flex flex-col items-center flex-1 text-[10px] font-semibold py-1 rounded-lg transition-colors", location.pathname === "/profile" ? "text-blue-600 bg-blue-50/50" : "text-muted-foreground hover:bg-muted/50")}>
               <div className="mb-1 relative">
                 <User className="w-5 h-5 mx-auto" />

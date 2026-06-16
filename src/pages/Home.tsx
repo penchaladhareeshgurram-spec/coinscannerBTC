@@ -6,6 +6,8 @@ import { Link } from "react-router-dom";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { HeroBand } from "../components/home/HeroBand";
 import { Star, TrendingUp, TrendingDown, Clock } from "lucide-react";
+import { auth } from "@/src/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 
 export default function Home() {
   const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null);
@@ -14,8 +16,14 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"gainers" | "losers" | "picks">("gainers");
   
-  const userStr = localStorage.getItem("user");
-  const isAuthenticated = !!userStr;
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setIsAuthenticated(!!user);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     async function loadData() {
